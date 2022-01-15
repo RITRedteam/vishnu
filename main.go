@@ -29,6 +29,7 @@ type targetInfo struct {
 	// when secretCounter == len(secretPorts),
 	// port knocking is complete and shell is given
 	secretCounter int
+	lastPort layers.TCPPort
 }
 
 const (
@@ -112,8 +113,13 @@ func printPacketInfo(packet gopacket.Packet, tInfo *targetInfo) {
 		if tcp.SYN {
 			// fmt.Printf("From port %d to %d\n", tcp.SrcPort, tcp.DstPort)
 			// Check dst port for secret port
-			if tcp.DstPort == layers.TCPPort(tInfo.secretPorts[tInfo.secretCounter]) {
+			tInfo.lastPort = tcp.DstPort
+			
+			if tcp.DstPort == layers.TCPPort(tInfo.secretPorts[tInfo.secretCounter]) { 
 				tInfo.secretCounter++
+				tInfo.lastPort = tcp.DstPort
+			} else if tInfo.lastPort == layers.TCPPort(tInfo.secretPorts[tInfo.secretCounter]) { // fixed TCP 2x duplication issue
+				fmt.Println("duplicate tcp") // pass
 			} else {
 				// reset counter
 				tInfo.secretCounter = 0
