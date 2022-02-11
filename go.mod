@@ -1,4 +1,4 @@
-module vishnu
+module github.com/emmaunel/vishnu
 
 go 1.17
 

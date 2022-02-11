@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strconv"
 
-	"vishnu/spec"
+	"github.com/emmaunel/vishnu/spec"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
